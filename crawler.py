@@ -12,7 +12,7 @@ from http import client
 # 下载线程数量
 thread_num = 10
 # temporary API KEY
-api_key = '12c6658dd3fc36b164fee653181086e4'
+api_key = 'a0a4dea38c341f52543ef6be07d85281'
 # 本地存储路径
 path = 'photos/'
 # url地址
@@ -90,10 +90,10 @@ class photo_downloader(threading.Thread):
 if __name__ == '__main__':
     que = queue.Queue()
     #date = datetime.date.today()
-    date = datetime.date(2017,8,27)
+    date = datetime.date(2017,5,26)
     while True:
         # 总共需要的图片数量（会略多一些）
-        if(len([x for x in os.listdir(path)])<(100000-56000)):
+        if(len([x for x in os.listdir(path)])<100000):
             date -= datetime.timedelta(1)
             # 可能由于网络不好等原因报异常，这种情况下date不变，重新调用find_url
             try:

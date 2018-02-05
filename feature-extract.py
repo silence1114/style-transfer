@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import pickle
 import numpy as np
 from matplotlib import pyplot
+from sklearn.decomposition import PCA
 # 设置当前的工作环境在caffe下
 caffe_root = '/home/silence/caffe/caffe/'
 # 把caffe/python也添加到当前环境
@@ -10,8 +12,8 @@ sys.path.insert(0, caffe_root + 'python')
 import caffe
 # 更换工作目录
 os.chdir(caffe_root)
-caffe.set_mode_cpu()
-#caffe.set_mode_gpu()
+#caffe.set_mode_cpu() 
+caffe.set_mode_gpu() #GPU模式运行要加sudo
 # 设置网络结构
 net_file = caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt'
 # 添加训练之后的参数
@@ -28,7 +30,7 @@ transformer = caffe.io.Transformer({'data':net.blobs['data'].data.shape})
 matplotlib加载的image是像素[0-1],图片的数据格式[weight,high,channels]，RGB  
 caffe加载的图片需要的是[0-255]像素，数据格式[channels,weight,high],BGR，那么就需要转换
 '''
-# channel放到前面
+# channel放到前面 skimage读出来的是(height,width, channel) ，但caffe可以处理的图片的数据格式是(channel,height,width)
 transformer.set_transpose('data',(2,0,1))
 # 对于每个通道，都减去BGR的均值像素值
 transformer.set_mean('data',np.load(mean_file).mean(1).mean(1))
@@ -36,33 +38,61 @@ transformer.set_mean('data',np.load(mean_file).mean(1).mean(1))
 transformer.set_raw_scale('data',255)
 # RGB -> BGR 转换
 transformer.set_channel_swap('data',(2,1,0))
-
+# 设置输入图像大小
+net.blobs['data'].reshape(50,        # batch 大小
+                          3,         # 3-channel (BGR) images
+                          227, 227)  # 图像大小为:227x227
+# 加载imagenet标签
+labels_file = caffe_root + 'data/ilsvrc12/synset_words.txt'
+labels = np.loadtxt(labels_file,str,delimiter='\t')
 # 加载图片
-im = caffe.io.load_image('/home/silence/proj/photos/23497071398.jpg')
-# 用之前的设定处理图片 
-transformed_image = transformer.preprocess('data',im)
-# 将图像数据拷贝到为net分配的内存中
-net.blobs['data'].data[...] = transformed_image
-# 网络向前传播
-output = net.forward()
+features = []
+photo_names = []
+dir_path = '/home/silence/proj/photos_demo'
+photo_list = os.listdir(dir_path)
+for photo in sorted(photo_list):
+    im = caffe.io.load_image(dir_path+'/'+photo)
+    # 用之前的设定处理图片 
+    transformed_image = transformer.preprocess('data',im)
+    # 将图像数据拷贝到为net分配的内存中
+    net.blobs['data'].data[...] = transformed_image
+    # 网络向前传播
+    output = net.forward()
+    feat_fc7 = net.blobs['fc7'].data[0]
+    features.append(feat_fc7.copy())
+    photo_names.append(photo)
+save_path = '/home/silence/proj/'
+features = np.array(features)
+# PCA
+pca = PCA(n_components=512)
+features_pca = pca.fit_transform(features)
+file_features = open(save_path+'features.pkl','wb')
+file_names = open(save_path+'photonames.pkl','wb')
+pickle.dump(features_pca,file_features)
+pickle.dump(photo_names,file_names)
+'''
 # 结果（属于某个类别的概率值）
 # output_pro的shape中有对于1000个object相似的概率 
 output_prob = output['prob'][0]  #batch中第一张图像的概率值   
 # 加载imagenet标签
 labels_file = caffe_root + 'data/ilsvrc12/synset_words.txt'
 labels = np.loadtxt(labels_file,str,delimiter='\t')
-print('output label:', labels[output_prob.argmax()])
+#print('output label:', labels[output_prob.argmax()])
 # 前5名的概率和类别
 top_inds = output_prob.argsort()[::-1][:5]    
 print ('probabilities and labels:')
 for top_i in top_inds:
     print(output_prob[top_i],labels[top_i])  
 '''
-# 前5名的类别
-top_k = net.blobs['prob'].data[0].flatten().argsort()[-1:-6:-1]
-for i in np.arange(top_k.size):
-    print(top_k[i],labels[top_k[i]])
+
 '''
+    feat_fc6 = net.blobs['fc6'].data[0]
+    feat_fc6.shape = (4096,1)
+    row_feat_fc6 = np.transpose(feat_fc6)
+    np.savetxt('/home/silence/proj/features.txt',row_feat_fc6)
+'''
+
+
 
 
 
