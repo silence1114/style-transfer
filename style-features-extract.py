@@ -4,10 +4,11 @@ import numpy as np
 import pickle
 from skimage import io, color
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
-dir_path = '/home/silence/proj/style_ref_demo/'
+from multiprocessing import Pool,Manager,Process
+#dir_path = '/home/silence/proj/style_ref_demo/'
+dir_path = '/home/silence/proj/photos_demo/'
 save_path = '/home/silence/proj/'
-def extract_style_feature(filename):
+def extract_style_feature(image_index,filename,luminance_features,color_mu,color_cov):
     # 加载rgb图像
     rgb = io.imread(dir_path+filename)
     # 转换到CIELab色域
@@ -47,20 +48,36 @@ def extract_style_feature(filename):
     # 求方差
     cov = np.cov(color_layer.transpose()) #先转置变成2行h×w列的矩阵，然后cov将一列视为一个变量，因此有h×w个2维变量，输出一个2×2的协方差矩阵，其中对角线元素是每个维度的方差，非对角线上的元素则是不同维度间的协方差。
     ###########################################################
-    return luminance_feature.copy(),mu.copy(),cov.copy()
+    luminance_features[image_index] = luminance_feature.copy()
+    color_mu[image_index] = mu.copy()
+    color_cov[image_index] = cov.copy()
+    print('Image %d done' % image_index)
 
 if __name__ == '__main__':
     # 存储图片名列表
     image_list = os.listdir(dir_path)
-    #image_names_file = open(save_path+'refimagenames.pkl', 'wb')
-    #pickle.dump(image_list,image_names_file)
+    #image_names_file = open(save_path+'ref-imagenames.pkl', 'wb')
+    image_names_file = open(save_path+'data-imagenames.pkl', 'wb')
+    pickle.dump(image_list,image_names_file)
     num_of_images = len(image_list)
-    luminance_features = [0 for i in range(num_of_images)] 
-    color_mu = [0 for i in range(num_of_images)] 
-    color_cov = [0 for i in range(num_of_images)] 
-    
+    # 主进程与子进程共享这些list  
+    luminance_features = Manager().list(range(num_of_images))
+    color_mu = Manager().list(range(num_of_images))
+    color_cov = Manager().list(range(num_of_images))
+    # 多进程
+    p = Pool(4) #开辟进程池
     for i in range(num_of_images):
-        p = Pool()
+        p.apply_async(extract_style_feature,args=(i,image_list[i],luminance_features,color_mu,color_cov))#每个进程都调用extract_style_feature函数，args表示给该函数传递的参数
+       
+    p.close() #关闭进程池
+    p.join() #等待开辟的所有进程执行完后，主进程才继续往下执行
+    # 储存风格特征
+    #style_features = open(save_path+'ref-style-features.pkl', 'wb')
+    style_features = open(save_path+'data-style-features.pkl', 'wb')
+    pickle.dump({'luminance_features': list(luminance_features),
+                 'color_mu': list(color_mu),
+                 'color_cov':list(color_cov),}, style_features)## 注意，共享list不可直接dump，会报类型错误，必须先转换为普通list
     
-        #extract_style_feature(image_name)
+        
+    
         
