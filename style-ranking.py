@@ -2,7 +2,35 @@
 import numpy as np
 import pickle
 save_path = '/home/silence/proj/'
+def compute_similarity(luminance_data,mu_data,cov_data,luminance_ref,mu_ref,cov_ref):
+    # 调节参数
+    lambda_l = 0.005
+    lambda_c = 0.05
+    # 求亮度特征之间的欧氏距离
+    de = np.linalg.norm(luminance_data - luminance_ref)    
+    # 求色彩特征之间的Hellinger距离 (已经是平方形式
+    tmp1 = np.power(np.linalg.det(cov_data),1/4)*np.power(np.linalg.det(cov_data),1/4)/np.power(np.linalg.det((cov_data+cov_ref)/2),1/2)
+    tmp2 = (-1/8)*np.dot(np.dot((mu_data-mu_ref),((cov_data+cov_ref)/2)),np.transpose(mu_data-mu_ref))
+    dh = 1 - (tmp1*np.exp(tmp2))
+    # 计算相似度
+    similarity = np.exp(-1*(np.power(de,2)/lambda_l))*np.exp(-1*(dh/lambda_c))
+    return similarity
+    '''
+    epsilon = 1
+    mu = np.matrix(np.abs(mu_data - mu_ref) + epsilon).T
+    sigma = np.matrix((cov_data + cov_ref) / 2)
+    dh_1 = np.power(np.linalg.norm(cov_ref.dot(cov_data), 1), 1 / 4) / (np.power(np.linalg.norm(sigma, 1), 1 / 2))
+    dh_2 = (-1 / 8) * mu.T * np.linalg.inv(sigma) * mu
+    dh = 1 - dh_1 * np.exp(dh_2)
+    ans = np.exp(-np.power(de, 2) / lambda_l) * np.exp(-np.power(dh, 2) / lambda_c)
+    return np.max(ans)
+    '''
 
+
+def scoring(i,j,k):
+    similarity = compute_similarity(data_luminance[k],data_mu[k],data_cov[k],ref_luminance[j],ref_mu[j],ref_cov[j])
+    score[i][j] += similarity
+    
 
 if __name__ == '__main__':
     # 加载文件名列表
@@ -27,3 +55,14 @@ if __name__ == '__main__':
     cluster_index = pickle.load(cluster_index_file)
     num_of_clusters = len(cluster_index)
     score = np.zeros((num_of_clusters,num_of_ref))
+    # 累积计分
+    for i in range(num_of_clusters):
+        c = cluster_index[i]
+        for j in range(num_of_ref):
+            for k in range(len(c)):
+                scoring(i,j,c[k])
+          
+    ranking_file = open(save_path+'style-ranking.pkl', 'wb')
+    pickle.dump(score,ranking_file)
+
+
