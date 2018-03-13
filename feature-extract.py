@@ -48,7 +48,8 @@ labels = np.loadtxt(labels_file,str,delimiter='\t')
 # 加载图片
 features = []
 photo_names = []
-dir_path = '/home/silence/proj/photos_demo'
+dir_path = '/home/silence/proj/photos_demo'  #训练
+#dir_path = '/home/silence/proj/photos_test_demo'  #测试
 photo_list = os.listdir(dir_path)
 for photo in sorted(photo_list):
     im = caffe.io.load_image(dir_path+'/'+photo)
@@ -63,33 +64,27 @@ for photo in sorted(photo_list):
     photo_names.append(photo)
 save_path = '/home/silence/proj/'
 features = np.array(features)
+### 训练
+
 # PCA
 pca = PCA(n_components=512)
-features_pca = pca.fit_transform(features)
-file_features = open(save_path+'features.pkl','wb')
+features_pca = pca.fit_transform(features) #用训练图片来训练PCA模型，同时返回降维后的数据
+pca_model = open(save_path+'pca_model.pkl','wb') #保存训练好的pca模型
+file_features = open(save_path+'features.pkl','wb') 
 file_names = open(save_path+'photonames.pkl','wb')
+pickle.dump(pca,pca_model)
 pickle.dump(features_pca,file_features)
 pickle.dump(photo_names,file_names)
-'''
-# 结果（属于某个类别的概率值）
-# output_pro的shape中有对于1000个object相似的概率 
-output_prob = output['prob'][0]  #batch中第一张图像的概率值   
-# 加载imagenet标签
-labels_file = caffe_root + 'data/ilsvrc12/synset_words.txt'
-labels = np.loadtxt(labels_file,str,delimiter='\t')
-#print('output label:', labels[output_prob.argmax()])
-# 前5名的概率和类别
-top_inds = output_prob.argsort()[::-1][:5]    
-print ('probabilities and labels:')
-for top_i in top_inds:
-    print(output_prob[top_i],labels[top_i])  
-'''
 
+### 测试
 '''
-    feat_fc6 = net.blobs['fc6'].data[0]
-    feat_fc6.shape = (4096,1)
-    row_feat_fc6 = np.transpose(feat_fc6)
-    np.savetxt('/home/silence/proj/features.txt',row_feat_fc6)
+pca_model = open(save_path+'pca_model.pkl','rb')
+pca = pickle.load(pca_model)
+features_pca = pca.transform(features) #当模型训练好后，对于新输入的数据，用transform方法来降维
+file_features = open(save_path+'test_features.pkl','wb')  #测试
+file_names = open(save_path+'test_photonames.pkl','wb')
+pickle.dump(features_pca,file_features)
+pickle.dump(photo_names,file_names)
 '''
 
 

@@ -5,12 +5,17 @@ import numpy as np
 from sklearn.cluster import KMeans
 # 加载特征数据
 save_path = '/home/silence/proj/'
-file_feature = open(save_path+'features.pkl', 'rb')
+file_feature = open(save_path+'features.pkl', 'rb') #训练
+#file_feature = open(save_path+'test_features.pkl', 'rb') #测试
 features = pickle.load(file_feature)
+### 训练
+
 # 聚类
 num_clusters = 3
 km_cluster = KMeans(n_clusters=num_clusters,n_jobs=-1)
 km_cluster.fit(features)
+kmeans_model = open(save_path+'kmeans_model.pkl','wb')
+pickle.dump(km_cluster,kmeans_model) #保存训练好的模型
 file_cluster = open(save_path+'clusters.pkl', 'wb')
 pickle.dump(km_cluster.labels_,file_cluster)
 # 存储结果
@@ -29,5 +34,12 @@ pickle.dump(index_list,file_index)
 clustered_filenames = open(save_path+'clusteredNames.pkl','wb')
 pickle.dump(names_list,clustered_filenames)
 
-
+### 测试
+'''
+kmeans_model = open(save_path+'kmeans_model.pkl','rb')
+km_cluster = pickle.load(kmeans_model)
+labels = km_cluster.predict(features)
+test_labels = open(save_path+'test_labels.pkl', 'wb')
+pickle.dump(labels,test_labels)
+'''
 

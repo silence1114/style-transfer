@@ -14,6 +14,7 @@ def compute_similarity(luminance_data,mu_data,cov_data,luminance_ref,mu_ref,cov_
     dh = 1 - (tmp1*np.exp(tmp2))
     # 计算相似度
     similarity = np.exp(-1*(np.power(de,2)/lambda_l))*np.exp(-1*(dh/lambda_c))
+    
     return similarity
     '''
     epsilon = 1
@@ -29,7 +30,20 @@ def compute_similarity(luminance_data,mu_data,cov_data,luminance_ref,mu_ref,cov_
 
 def scoring(i,j,k):
     similarity = compute_similarity(data_luminance[k],data_mu[k],data_cov[k],ref_luminance[j],ref_mu[j],ref_cov[j])
-    score[i][j] += similarity
+    
+    if similarity>1e-10:
+        score[i][j] += 10
+    elif similarity<=1e-10 and similarity>1e-20:
+        score[i][j] += 7
+    elif similarity<=1e-20 and similarity>1e-40:
+        score[i][j] += 4
+    elif similarity<=1e-40 and similarity>1e-70:
+        score[i][j] += 2
+    elif similarity<=1e-70 and similarity>1e-100:
+        score[i][j] += 1
+    else:
+        score[i][j] +=0
+    
     
 
 if __name__ == '__main__':
@@ -61,7 +75,8 @@ if __name__ == '__main__':
         for j in range(num_of_ref):
             for k in range(len(c)):
                 scoring(i,j,c[k])
-          
+         
+    print(score)
     ranking_file = open(save_path+'style-ranking.pkl', 'wb')
     pickle.dump(score,ranking_file)
 
